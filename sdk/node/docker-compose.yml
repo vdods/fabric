@@ -1,11 +1,12 @@
 version: '2'
 volumes:
   var_hyperledger_production:
+  ccenv_devmode0_gopath:
   unittest_node_modules:
   unittest_key_val_store:
 services:
   membersrvc:
-    image: hyperledger/fabric-membersrvc:x86_64-0.6.2-preview-snapshot-ee5b85c
+    image: hyperledger/fabric-membersrvc
 
     environment:
       - MEMBERSRVC_CA_ACA_ENABLED=true
@@ -31,10 +32,10 @@ services:
       # - MEMBERSRVC_CA_LOGGING_TCAA=debug
       # - MEMBERSRVC_CA_LOGGING_TLSCA=debug
 
-    # Technically want to create a docker image with tlsca.cert already in /var/hyperledger/production/.membersrvc
+    # Running membersrvc will cause /var/hyperledger/production/.membersrvc/ to be populated with
+    # all the necessary certs and public/private keys.  tlsca.cert and tlsca.priv 
     volumes:
       - var_hyperledger_production:/var/hyperledger/production/:rw
-      # - ./test/fixtures/:/var/hyperledger/production/.membersrvc/:rw
     # ports:
     #   - 7054:7054
     command: |
@@ -44,7 +45,7 @@ services:
       "
 
   vp0:
-    image: hyperledger/fabric-peer:x86_64-0.6.2-preview-snapshot-ee5b85c
+    image: hyperledger/fabric-peer
     environment:
       - CORE_PEER_ADDRESSAUTODETECT=true
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
@@ -79,15 +80,25 @@ services:
       - CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
       - CORE_PEER_PROFILE_ENABLED=true
 
-    # Use volumes from membersrvc so peer has access to certificate and private key.
-    volumes_from:
-      - membersrvc:rw
     volumes:
+      # var_hyperledger_production gives access to membersrvc's tlsca.cert (and .priv); the ledger
+      # state is stored by the peer in /var/hyperledger/production
+      - var_hyperledger_production:/var/hyperledger/production/:rw
+      # For use of unix:///host/var/run/docker.sock apparently
       - /var/run/:/host/var/run/
+
+    # # This is for when SDK_DEPLOY_MODE=net
+    # command: |
+    #   bash -x -c "
+    #     sleep 5;
+    #     peer node start
+    #   "
+
+    # This is for when SDK_DEPLOY_MODE=dev
     command: |
       bash -x -c "
         sleep 5;
-        peer node start
+        peer node start --peer-chaincodedev
       "
     depends_on:
       - membersrvc
@@ -95,20 +106,87 @@ services:
       - 7051:7051
       - 7053:7053
 
-  unittest:
-    image: unittestenv-0.6
+  ccenv_devmode0:
+    image: serviceenv-0.6.2
     build:
       context: .
-      dockerfile: unittestenv-0.6.Dockerfile
+      dockerfile: serviceenv-0.6.2.Dockerfile
+    environment:
+      # This ID depends on a value within the unit test .js itself (in this case, asset-mgmt-with-roles.js)
+      - CORE_CHAINCODE_ID_NAME=mycc3
+      - CORE_PEER_ADDRESS=vp0:7051
+      - CORE_MEMBERSRVC_ADDRESS=membersrvc:7054
+
+      # These were basically all taken verbatim from the peer's env vars in order to enable deployment
+      # in a peer with security enabled.  I'm not sure which ones are actually necessary.
+
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+
+      - CORE_LOGGING_LEVEL=debug
+      - CORE_LOGGING_PEER=debug
+      - CORE_LOGGING_NODE=debug
+      - CORE_LOGGING_NETWORK=debug
+      - CORE_LOGGING_CHAINCODE=debug
+      - CORE_LOGGING_VERSION=debug
+
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      # Is having membersrvc's private key really correct?  Or are we just lazily using
+      # the membersrvc's cert and private key for the peer too?
+      - CORE_PEER_TLS_KEY_FILE=/var/hyperledger/production/.membersrvc/tlsca.priv
+      - CORE_PEER_TLS_SERVERHOSTOVERRIDE=tlsca
+      - CORE_PEER_PKI_TLS_ENABLED=true
+      # Same question here
+      - CORE_PEER_PKI_TLS_ROOTCERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      - CORE_PEER_PKI_TLS_SERVERHOSTOVERRIDE=tlsca
+
+      - CORE_SECURITY_ENABLED=true
+      - CORE_SECURITY_PRIVACY=true
+      - CORE_PEER_PKI_ECA_PADDR=membersrvc:7054
+      - CORE_PEER_PKI_TCA_PADDR=membersrvc:7054
+      - CORE_PEER_PKI_TLSCA_PADDR=membersrvc:7054
+      - CORE_PEER_ID=vp0
+      - CORE_SECURITY_ENROLLID=test_vp0
+      - CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
+      - CORE_PEER_PROFILE_ENABLED=true
+
+    volumes:
+      # Mount this volume for access to tlsca.cert and tlsca.priv
+      - var_hyperledger_production:/var/hyperledger/production/:ro
+      # This volume is to store the build files and binaries for the Go language stuff (e.g. chaincode and deps)
+      - ccenv_devmode0_gopath:$GOPATH:rw
+    # $$GOPATH (double dollar) is required to prevent docker-compose doing its own substitution before the
+    # value gets to the container.
+    command: |
+      bash -x -c "
+        time go install github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles &&
+        /synchronizer/synchronizer.py --tell=unittest:45954/chaincode-build-complete --verbose=true --output-stream=stderr &&
+        $$GOPATH/bin/asset_management_with_roles
+      "
+    depends_on:
+      - vp0
+      - unittest
+
+  unittest:
+    image: serviceenv-0.6.2
+    build:
+      context: .
+      dockerfile: serviceenv-0.6.2.Dockerfile
     environment:
       - NODE_PATH=$GOPATH/src/github.com/hyperledger/fabric/sdk/node:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/lib:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:/usr/local/lib/node_modules:/usr/local/lib/node_modules/hfc
-      - SDK_DEPLOY_MODE=net
+
+      # If SDK_DEPLOY_MODE is "net", then the node.js server will send the chaincode to the peer in the deploy request.
+      # - SDK_DEPLOY_MODE=net
+
+      # If SDK_DEPLOY_MODE is "dev", then it is assumed that we will build and run the chaincode ourselves.
+      - SDK_DEPLOY_MODE=dev
+
       - SDK_MEMBERSRVC_ADDRESS=membersrvc:7054
       - SDK_PEER_ADDRESS=vp0:7051
       - SDK_EVENTHUB_ADDRESS=vp0:7053
       - SDK_TLS=1
       - SDK_CA_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
-      # This corresponds to MEMBERSRVC_CA_SECURITY_SERVERHOSTOVERRIDE
+      # This should match MEMBERSRVC_CA_SECURITY_SERVERHOSTOVERRIDE
       - SDK_CA_CERT_HOST=tlsca
       - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
       # - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
@@ -127,12 +205,15 @@ services:
       # on the host machine, and keep the results of `npm install` around for use in unittest.  Not
       # doing this will cause version mismatch errors in the unit tests.
       - unittest_node_modules:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:rw
+      # Some persistent key store used by node.js (see SDK_KEYSTORE).
       - unittest_key_val_store:/tmp/PersistentKeyValStore:rw
 
+    working_dir: $GOPATH/src/github.com/hyperledger/fabric/sdk/node
     command: |
       bash -x -c "
         ls -al node_modules && \
         npm install && \
+        /synchronizer/synchronizer.py --wait-for=chaincode-build-complete --wait-on-address=unittest --wait-on-port=45954 --verbose=true --output-stream=stderr
         node test/unit/asset-mgmt-with-roles.js
       "
 

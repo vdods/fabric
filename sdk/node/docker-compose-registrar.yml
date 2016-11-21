@@ -39,7 +39,6 @@ services:
     # value gets to the container.
     command: |
       bash -x -c "
-        ls -al node_modules && \
         npm install && \
         node test/unit/registrar.js
       "

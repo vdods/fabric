@@ -60,7 +60,6 @@ services:
     # value gets to the container.
     command: |
       bash -x -c "
-        ls -al node_modules && \
         npm install && \
         /synchronizer/synchronizer.py --wait-for=chaincode-build-complete --wait-on-address=unittest --wait-on-port=45954 --verbose=true --output-stream=stderr
         node test/unit/asset-mgmt-with-dynamic-roles.js

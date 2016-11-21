@@ -29,7 +29,9 @@ chain.setDeployWaitTime(120);
 
 var goPath = process.env.GOPATH;
 // Path to the local directory containing the chaincode project under $GOPATH
-var testChaincodePath = "github.com/eventsender/";
+var testChaincodePath = process.env.SDK_CHAINCODE_PATH
+ ? process.env.SDK_CHAINCODE_PATH
+ : "github.com/eventsender/" ;
 var absoluteTestChaincodePath = goPath + "/src/" + testChaincodePath;
 
 

@@ -1,0 +1,145 @@
+version: '2'
+volumes:
+  var_hyperledger_production:
+  unittest_node_modules:
+  unittest_key_val_store:
+services:
+  membersrvc:
+    image: hyperledger/fabric-membersrvc:x86_64-0.6.2-preview-snapshot-ee5b85c
+
+    environment:
+      - MEMBERSRVC_CA_ACA_ENABLED=true
+
+      - MEMBERSRVC_CA_SERVER_TLS_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      - MEMBERSRVC_CA_SERVER_TLS_KEY_FILE=/var/hyperledger/production/.membersrvc/tlsca.priv
+      - MEMBERSRVC_CA_SERVER_TLS_CERTFILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      - MEMBERSRVC_CA_SERVER_TLS_KEYFILE=/var/hyperledger/production/.membersrvc/tlsca.priv
+      - MEMBERSRVC_CA_SECURITY_TLS_ENABLED=true
+      - MEMBERSRVC_CA_SECURITY_SERVERHOSTOVERRIDE=tlsca
+      - MEMBERSRVC_CA_SECURITY_CLIENT_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+
+      - MEMBERSRVC_CA_LOGGING_TRACE=1
+      - MEMBERSRVC_CA_LOGGING_SERVER=debug
+      # - MEMBERSRVC_CA_LOGGING_CA=debug
+      # - MEMBERSRVC_CA_LOGGING_ECA=debug
+      # - MEMBERSRVC_CA_LOGGING_ECAP=debug
+      # - MEMBERSRVC_CA_LOGGING_ECAA=debug
+      # - MEMBERSRVC_CA_LOGGING_ACA=debug
+      # - MEMBERSRVC_CA_LOGGING_ACAP=debug
+      # - MEMBERSRVC_CA_LOGGING_TCA=debug
+      # - MEMBERSRVC_CA_LOGGING_TCAP=debug
+      # - MEMBERSRVC_CA_LOGGING_TCAA=debug
+      # - MEMBERSRVC_CA_LOGGING_TLSCA=debug
+
+    # Technically want to create a docker image with tlsca.cert already in /var/hyperledger/production/.membersrvc
+    volumes:
+      - var_hyperledger_production:/var/hyperledger/production/:rw
+      # - ./test/fixtures/:/var/hyperledger/production/.membersrvc/:rw
+    # ports:
+    #   - 7054:7054
+    command: |
+      bash -x -c "
+        find /var/hyperledger/production;
+        membersrvc;
+      "
+
+  vp0:
+    image: hyperledger/fabric-peer:x86_64-0.6.2-preview-snapshot-ee5b85c
+    environment:
+      - CORE_PEER_ADDRESSAUTODETECT=true
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+
+      - CORE_LOGGING_LEVEL=debug
+      - CORE_LOGGING_PEER=debug
+      - CORE_LOGGING_NODE=debug
+      - CORE_LOGGING_NETWORK=debug
+      - CORE_LOGGING_CHAINCODE=debug
+      - CORE_LOGGING_VERSION=debug
+
+      # - CORE_PEER_NETWORKID=${CORE_PEER_NETWORKID}
+
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      # Is having membersrvc's private key really correct?  Or are we just lazily using
+      # the membersrvc's cert and private key for the peer too?
+      - CORE_PEER_TLS_KEY_FILE=/var/hyperledger/production/.membersrvc/tlsca.priv
+      - CORE_PEER_TLS_SERVERHOSTOVERRIDE=tlsca
+      - CORE_PEER_PKI_TLS_ENABLED=true
+      # Same question here
+      - CORE_PEER_PKI_TLS_ROOTCERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      - CORE_PEER_PKI_TLS_SERVERHOSTOVERRIDE=tlsca
+
+      - CORE_SECURITY_ENABLED=true
+      - CORE_SECURITY_PRIVACY=true
+      - CORE_PEER_PKI_ECA_PADDR=membersrvc:7054
+      - CORE_PEER_PKI_TCA_PADDR=membersrvc:7054
+      - CORE_PEER_PKI_TLSCA_PADDR=membersrvc:7054
+      - CORE_PEER_ID=vp0
+      - CORE_SECURITY_ENROLLID=test_vp0
+      - CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
+      - CORE_PEER_PROFILE_ENABLED=true
+
+    # Use volumes from membersrvc so peer has access to certificate and private key.
+    volumes_from:
+      - membersrvc:rw
+    volumes:
+      - /var/run/:/host/var/run/
+    command: |
+      bash -x -c "
+        sleep 5;
+        peer node start
+      "
+    depends_on:
+      - membersrvc
+    ports:
+      - 7051:7051
+      - 7053:7053
+
+  unittest:
+    image: unittestenv-0.6
+    build:
+      context: .
+      dockerfile: unittestenv-0.6.Dockerfile
+    environment:
+      - NODE_PATH=$GOPATH/src/github.com/hyperledger/fabric/sdk/node:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/lib:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:/usr/local/lib/node_modules:/usr/local/lib/node_modules/hfc
+      - SDK_DEPLOY_MODE=net
+      - SDK_MEMBERSRVC_ADDRESS=membersrvc:7054
+      - SDK_PEER_ADDRESS=vp0:7051
+      - SDK_EVENTHUB_ADDRESS=vp0:7053
+      - SDK_TLS=1
+      - SDK_CA_CERT_FILE=/var/hyperledger/production/.membersrvc/tlsca.cert
+      # This corresponds to MEMBERSRVC_CA_SECURITY_SERVERHOSTOVERRIDE
+      - SDK_CA_CERT_HOST=tlsca
+      - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
+      # - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
+      # - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management/
+      # - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/chaincode_example02/
+      - SDK_KEYSTORE=/tmp/PersistentKeyValStore
+
+    # This is so we can get tlsca.cert (TODO: This is totally using god-mode, figure out how to do it for real)
+    volumes_from:
+      - membersrvc:rw
+    # Mount the root dir of fabric-sdk-node so the unit tests are available to run.
+    volumes:
+      - .:$GOPATH/src/github.com/hyperledger/fabric/sdk/node:rw
+      # Overlay the node_modules dir (which was used by `make lib` in hyperledger/fabric/sdk/node) for
+      # when `npm install` is run before the unit tests.  This will avoid overwriting node_modules
+      # on the host machine, and keep the results of `npm install` around for use in unittest.  Not
+      # doing this will cause version mismatch errors in the unit tests.
+      - unittest_node_modules:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:rw
+      - unittest_key_val_store:/tmp/PersistentKeyValStore:rw
+
+    command: |
+      bash -x -c "
+        ls -al node_modules && \
+        npm install && \
+        node test/unit/asset-mgmt-with-roles.js
+      "
+
+        # node test/unit/chain-tests.js
+        # node test/unit/asset-mgmt-with-dynamic-roles.js
+        # node test/unit/asset-mgmt.js
+
+    depends_on:
+      - membersrvc
+      - vp0

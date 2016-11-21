@@ -186,7 +186,6 @@ services:
       # This should match MEMBERSRVC_CA_SECURITY_SERVERHOSTOVERRIDE
       - SDK_CA_CERT_HOST=tlsca
       - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
-      - SDK_KEYSTORE=/tmp/PersistentKeyValStore
     volumes:
       # Mount this volume for access to tlsca.cert and tlsca.priv
       - var_hyperledger_production:/var/hyperledger/production/:ro
@@ -197,8 +196,9 @@ services:
       # on the host machine, and keep the results of `npm install` around for use in unittest.  Not
       # doing this will cause version mismatch errors in the unit tests.
       - unittest_node_modules:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:rw
-      # Some persistent key store used by node.js (see SDK_KEYSTORE).
-      - unittest_key_val_store:/tmp/PersistentKeyValStore:rw
+      # Temp dir where the keyValStore dir will be created.  Mount this as a volume so it can
+      # either persist, be cleared, or be examined.
+      - unittest_tmp:/tmp:rw
     working_dir: $GOPATH/src/github.com/hyperledger/fabric/sdk/node
     # depends_on:
     #   - membersrvc

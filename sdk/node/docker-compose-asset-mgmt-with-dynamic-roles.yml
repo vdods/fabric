@@ -3,7 +3,7 @@ volumes:
   var_hyperledger_production:
   ccenv_devmode0_gopath:
   unittest_node_modules:
-  unittest_key_val_store:
+  unittest_tmp:
 services:
   # Note: The defaults in compose-defaults.yml assume that the service extending default_membersrvc is called membersrvc.
   membersrvc:

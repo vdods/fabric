@@ -1,0 +1,70 @@
+version: '2'
+volumes:
+  var_hyperledger_production:
+  ccenv_devmode0_gopath:
+  unittest_node_modules:
+  unittest_key_val_store:
+services:
+  # Note: The defaults in compose-defaults.yml assume that the service extending default_membersrvc is called membersrvc.
+  membersrvc:
+    extends:
+      file: compose-defaults.yml
+      service: default_membersrvc
+
+  # Note: The defaults in compose-defaults.yml assume that the service extending default_membersrvc is called membersrvc.
+  vp0:
+    extends:
+      file: compose-defaults.yml
+      service: default_vp_deploy_mode_dev
+    environment:
+      - CORE_PEER_ID=vp0
+      - CORE_SECURITY_ENROLLID=test_vp0
+      - CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
+    depends_on:
+      - membersrvc
+
+  ccenv_devmode0:
+    extends:
+      file: compose-defaults.yml
+      service: default_ccenv_devmode
+    environment:
+      # This ID depends on a value within the unit test .js itself (in this case, asset-mgmt.js)
+      - CORE_CHAINCODE_ID_NAME=mycc2
+      - CORE_PEER_ADDRESS=vp0:7051
+      - CORE_PEER_ID=vp0
+      - CORE_SECURITY_ENROLLID=test_vp0
+      - CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
+    # $$GOPATH (double dollar) is required to prevent docker-compose doing its own substitution before the
+    # value gets to the container.
+    command: |
+      bash -x -c "
+        time go install github.com/hyperledger/fabric/examples/chaincode/go/asset_management &&
+        /synchronizer/synchronizer.py --tell=unittest:45954/chaincode-build-complete --verbose=true --output-stream=stderr &&
+        $$GOPATH/bin/asset_management
+      "
+    depends_on:
+      - vp0
+      - unittest
+
+  unittest:
+    extends:
+      file: compose-defaults.yml
+      service: default_unittest
+    environment:
+      # If SDK_DEPLOY_MODE is "dev", then it is assumed that we will build and run the chaincode ourselves (ccenv_devmode0).
+      - SDK_DEPLOY_MODE=dev
+      - SDK_PEER_ADDRESS=vp0:7051
+      - SDK_EVENTHUB_ADDRESS=vp0:7053
+
+    # $$GOPATH (double dollar) is required to prevent docker-compose doing its own substitution before the
+    # value gets to the container.
+    command: |
+      bash -x -c "
+        ls -al node_modules && \
+        npm install && \
+        /synchronizer/synchronizer.py --wait-for=chaincode-build-complete --wait-on-address=unittest --wait-on-port=45954 --verbose=true --output-stream=stderr
+        node test/unit/asset-mgmt.js
+      "
+    depends_on:
+      - membersrvc
+      - vp0

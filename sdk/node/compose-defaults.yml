@@ -1,9 +1,4 @@
 version: '2'
-# volumes:
-#   var_hyperledger_production:
-#   ccenv_devmode0_gopath:
-#   unittest_node_modules:
-#   unittest_key_val_store:
 services:
   default_membersrvc:
     image: hyperledger/fabric-membersrvc:x86_64-0.6.2-preview-snapshot-ee5b85c
@@ -159,7 +154,6 @@ services:
       - CORE_PEER_PKI_TCA_PADDR=membersrvc:7054
       - CORE_PEER_PKI_TLSCA_PADDR=membersrvc:7054
       - CORE_PEER_PROFILE_ENABLED=true
-
     volumes:
       # Mount this volume for access to tlsca.cert and tlsca.priv
       - var_hyperledger_production:/var/hyperledger/production/:ro
@@ -193,7 +187,6 @@ services:
       - SDK_CA_CERT_HOST=tlsca
       - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/asset_management_with_roles/
       - SDK_KEYSTORE=/tmp/PersistentKeyValStore
-
     volumes:
       # Mount this volume for access to tlsca.cert and tlsca.priv
       - var_hyperledger_production:/var/hyperledger/production/:ro
@@ -206,20 +199,7 @@ services:
       - unittest_node_modules:$GOPATH/src/github.com/hyperledger/fabric/sdk/node/node_modules:rw
       # Some persistent key store used by node.js (see SDK_KEYSTORE).
       - unittest_key_val_store:/tmp/PersistentKeyValStore:rw
-
     working_dir: $GOPATH/src/github.com/hyperledger/fabric/sdk/node
-    # command: |
-    #   bash -x -c "
-    #     ls -al node_modules && \
-    #     npm install && \
-    #     /synchronizer/synchronizer.py --wait-for=chaincode-build-complete --wait-on-address=unittest --wait-on-port=45954 --verbose=true --output-stream=stderr
-    #     node test/unit/asset-mgmt-with-roles.js
-    #   "
-
-        # node test/unit/chain-tests.js
-        # node test/unit/asset-mgmt-with-dynamic-roles.js
-        # node test/unit/asset-mgmt.js
-
     # depends_on:
     #   - membersrvc
     #   - vp0

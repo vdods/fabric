@@ -6,7 +6,7 @@ volumes:
   unittest_key_val_store:
 services:
   membersrvc:
-    image: hyperledger/fabric-membersrvc
+    image: hyperledger/fabric-membersrvc:x86_64-0.6.2-preview-snapshot-ee5b85c
 
     environment:
       - MEMBERSRVC_CA_ACA_ENABLED=true
@@ -45,7 +45,7 @@ services:
       "
 
   vp0:
-    image: hyperledger/fabric-peer
+    image: hyperledger/fabric-peer:x86_64-0.6.2-preview-snapshot-ee5b85c
     environment:
       - CORE_PEER_ADDRESSAUTODETECT=true
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
@@ -194,11 +194,10 @@ services:
       # - SDK_CHAINCODE_PATH=github.com/hyperledger/fabric/examples/chaincode/go/chaincode_example02/
       - SDK_KEYSTORE=/tmp/PersistentKeyValStore
 
-    # This is so we can get tlsca.cert (TODO: This is totally using god-mode, figure out how to do it for real)
-    volumes_from:
-      - membersrvc:rw
-    # Mount the root dir of fabric-sdk-node so the unit tests are available to run.
     volumes:
+      # Mount this volume for access to tlsca.cert and tlsca.priv
+      - var_hyperledger_production:/var/hyperledger/production/:ro
+      # Mount the root dir of fabric-sdk-node so the unit tests are available to run.
       - .:$GOPATH/src/github.com/hyperledger/fabric/sdk/node:rw
       # Overlay the node_modules dir (which was used by `make lib` in hyperledger/fabric/sdk/node) for
       # when `npm install` is run before the unit tests.  This will avoid overwriting node_modules

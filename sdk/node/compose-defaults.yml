@@ -1,7 +1,7 @@
 version: '2'
 services:
   default_membersrvc:
-    image: hyperledger/fabric-membersrvc:x86_64-0.6.2-preview-snapshot-ee5b85c
+    image: hyperledger/fabric-membersrvc
 
     environment:
       - MEMBERSRVC_CA_ACA_ENABLED=true
@@ -40,7 +40,7 @@ services:
       "
 
   default_vp:
-    image: hyperledger/fabric-peer:x86_64-0.6.2-preview-snapshot-ee5b85c
+    image: hyperledger/fabric-peer
     environment:
       # NOTE: extending service must define (with example values)
       # - CORE_PEER_ID=vp0

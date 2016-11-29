@@ -1,5 +1,5 @@
 # Start with an image that has most of the necessary tools
-FROM hyperledger/fabric-ccenv:x86_64-0.6.2-preview-snapshot-ee5b85c
+FROM hyperledger/fabric-ccenv
 # In order for `npm install` to complete successfully, node-gyp requires python 2, so install it and set the PYTHON env var.
 # Also install `pip` and install the `requests` python package for use in `synchronizer`.
 # Also pull the `synchronizer` tool from github.com.

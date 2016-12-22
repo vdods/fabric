@@ -54,5 +54,5 @@ complexity.
 
 ### Todos and Notes
 
--   The main thing to do is to add detection of the unit test docker service return code and then automate
-    running the whole suite of unit tests.  See http://blog.ministryofprogramming.com/docker-compose-and-exit-codes/
+-   The main thing to do is to clean up the docker-compose files (using layering) and to move them into the test/fixtures
+    directory, so they're not clogging up the hfc root dir.

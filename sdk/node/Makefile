@@ -75,6 +75,16 @@ unit-tests: lib
 	@echo "[RUN] unit tests..."
 	@./bin/run-unit-tests.sh
 
+dockerized-unit-tests: lib
+	@echo "[RUN] dockerized unit tests..."
+	./bin/run-dockerized-unit-test.sh docker-compose-registrar.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-member-api.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-chain-tests.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-asset-mgmt.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-asset-mgmt-with-roles.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-asset-mgmt-with-dynamic-roles.yml
+	./bin/run-dockerized-unit-test.sh docker-compose-event-tests.yml
+
 clean:
 	@echo "[CLEAN]"
 	-rm -rf node_modules

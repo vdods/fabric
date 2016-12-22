@@ -2,12 +2,15 @@
 
 The files `docker-compose-*.yml` contain service definitions for running the HFC unit tests
 within dockerized environments, in which everything is clean and controlled, closer to that
-of a production environment.
+of a production environment.  Note though, that currently only `dev` mode (i.e. `SDK_DEPLOY_MODE=dev`)
+is used in this dockerization, meaning that the chaincode process must be spun up by us instead of by
+the peer (which is what `SDK_DEPLOY_MODE=net` would do).
 
 ### How To Run
 
-Simply run `make dockerized-unit-tests`.  For each set of unit tests (e.g. registrar-test.js,
-asset-mgmt.js, etc.), this should:
+Simply run `make dockerized-unit-tests`.
+
+What does this do?  For each set of unit tests (e.g. `registrar-test.js`, `asset-mgmt.js`, etc.), this should:
 
 -   Spin up the necessary docker-compose services and run the specified unit test.
 -   Detect when the unit test ends.
@@ -21,8 +24,10 @@ asset-mgmt.js, etc.), this should:
 
 -   TODO: Clean up the docker-compose files (using layering) and to move them into the test/fixtures
     directory, so they're not clogging up the hfc root dir.
--   TODO: Separate out the state for the peer and membersrvc into two separate volumes to simulate them
-    actually being on separate machines.
+-   TODO: Separate the state for the peer and membersrvc into two separate volumes to simulate the more
+    realistic condition of them being on separate machines.
 -   TODO: Correct use of certificates -- right now, the `tlsca.cert` made by membersrvc is used for the
     peer as well.  Worse, that cert is read by the peer directly from the membersrvc's volume, which would
     not be possible in a real world situation.
+-   TODO: Clean up unnecessary env vars in docker-compose files (e.g. in ccenv, I just copied all of the peer's
+    env vars, which was sufficient but not necessary to get it working).

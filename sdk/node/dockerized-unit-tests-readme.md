@@ -25,9 +25,10 @@ If the unit test didn't pass, there would be some number of failures, and it wou
 
 1. Start the `registrar` test
 
-        docker-compose -f docker-compose-registrar.yml up
+        docker-compose -f docker-compose-registrar.yml up --abort-on-container-exit
 
-2. Wait for node_unittest_1 to exit, observing the result, then hit `Ctrl+C`.  Make sure to bring the
+2. Wait for the services to exit, observing the result.  For example, `node_unittest_1 exited with code 1`.
+A return code of 0 indicates success, while any nonzero return code indicates failure.  Make sure to bring the
 services down (this deletes leftover containers, networks, etc, but leaves the volumes intact).
 
         docker-compose -f docker-compose-registrar.yml down
@@ -53,6 +54,5 @@ complexity.
 
 ### Todos and Notes
 
--   The main thing to do is have the finishing of each unit test bring the other services down, and exit
-    docker-compose with the return status of the unit test, so that a string of docker and docker-compose
-    commands can be used to run the entire unit test procedure and get a single return status value.
+-   The main thing to do is to add detection of the unit test docker service return code and then automate
+    running the whole suite of unit tests.  See http://blog.ministryofprogramming.com/docker-compose-and-exit-codes/

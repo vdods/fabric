@@ -86,8 +86,8 @@ function getTestChain(name) {
          console.log("Setting peer address to grpcs://" + peerAddr0);
          chain.addPeer("grpcs://" + peerAddr0, grpcOpts);
 
-//         console.log("Setting eventHub address to grpcs://" + eventHubAddr);
-//         chain.eventHubConnect("grpcs://" + eventHubAddr, grpcOpts);
+        console.log("Setting eventHub address to grpcs://" + eventHubAddr);
+        chain.eventHubConnect("grpcs://" + eventHubAddr, grpcOpts);
 
       } else {
          console.log("TLS was requested but " + caCert + " not found.")
@@ -96,10 +96,10 @@ function getTestChain(name) {
    } else {
       console.log("Setting membersrvc address to grpc://" + caAddr);
       console.log("Setting peer address to grpc://" + peerAddr0);
-//    console.log("Setting eventHub address to grpc://" + eventHubAddr);
+      console.log("Setting eventHub address to grpc://" + eventHubAddr);
       chain.setMemberServicesUrl("grpc://" + caAddr);
       chain.addPeer("grpc://" + peerAddr0);
-//    chain.eventHubConnect("grpc://" + eventHubAddr);
+      chain.eventHubConnect("grpc://" + eventHubAddr);
    }
    //
    // Set the chaincode deployment mode to either developent mode (user runs chaincode)
